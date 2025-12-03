@@ -20,25 +20,73 @@ class TractorOdometer(Node):
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('trailer_L_bars', [1.0, 1.0, 1.0, 1.0])
         self.declare_parameter('trailer_L_trls', [1.2, 1.2, 1.2, 1.2])
-        self.declare_parameter('trailer_dh_prevs', [0.5, 0.5, 0.5, 0.5])
+        
+        # Hitch Calculation Parameters
+        self.declare_parameter('tractor_tail_length', 0.15)
+        self.declare_parameter('trailer_tail_length', 0.15)
         
         # Color Parameters
         self.declare_parameter('color_tractor', [1.0, 0.27, 0.0, 0.5])
         self.declare_parameter('color_trailer', [0.0, 0.0, 1.0, 0.5])
-        self.declare_parameter('color_wheel', [0.0, 0.0, 0.0, 1.0])
-        self.declare_parameter('color_drawbar', [0.0, 0.0, 0.0, 1.0])
+        self.declare_parameter('color_wheel', [1.0, 1.0, 1.0, 1.0])
+        self.declare_parameter('color_drawbar', [0.8, 0.9, 1.0, 1.0])
+        
+        # Dimension Parameters
+        self.declare_parameter('tractor_width', 1.5)
+        self.declare_parameter('tractor_front_overhang', 0.1)
+        self.declare_parameter('tractor_overhang', 0.4)
+        self.declare_parameter('trailer_width', 1.5)
+        self.declare_parameter('trailer_body_len', 2.0)
+        self.declare_parameter('trailer_overhang', 0.4)
+        self.declare_parameter('wheel_diam', 0.6)
+        self.declare_parameter('wheel_width', 0.3)
+        self.declare_parameter('track_width', 1.0)
         
         self.L0 = self.get_parameter('L0').value
         dt = self.get_parameter('dt').value
         
         l_bars = self.get_parameter('trailer_L_bars').value
         l_trls = self.get_parameter('trailer_L_trls').value
-        dh_prevs = self.get_parameter('trailer_dh_prevs').value
+        
+        # Visualization Parameters (Needed for hitch calc)
+        self.tractor_width = self.get_parameter('tractor_width').value
+        self.tractor_front_overhang = self.get_parameter('tractor_front_overhang').value
+        self.tractor_overhang = self.get_parameter('tractor_overhang').value
+        
+        # Calculate Tractor Length dynamically
+        # Length = Rear Overhang + Wheelbase + Front Overhang
+        self.tractor_len = self.tractor_overhang + self.L0 + self.tractor_front_overhang
+        
+        self.trailer_width = self.get_parameter('trailer_width').value
+        self.trailer_body_len = self.get_parameter('trailer_body_len').value
+        self.trailer_overhang = self.get_parameter('trailer_overhang').value
+        self.wheel_diam = self.get_parameter('wheel_diam').value
+        self.wheel_width = self.get_parameter('wheel_width').value
+        self.W = self.get_parameter('track_width').value
+        
+        # Calculate Hitch Offsets
+        tractor_tail = self.get_parameter('tractor_tail_length').value
+        trailer_tail = self.get_parameter('trailer_tail_length').value
+        
+        tractor_hitch_offset = self.tractor_overhang + tractor_tail
+        trailer_hitch_offset = self.trailer_overhang + trailer_tail
+        
+        # Combine hitch offsets: [tractor_hitch, trailer_hitch, trailer_hitch, ...]
+        # Note: The last trailer's hitch offset is not used for a next trailer, but we need N entries.
+        # Actually, for N trailers, we need N dh_prev values.
+        # dh_prev[0] (Trailer 1) = Tractor Hitch Offset
+        # dh_prev[i] (Trailer i+1) = Trailer i Hitch Offset
+        
+        dh_prevs = [tractor_hitch_offset]
+        if len(l_bars) > 1:
+            dh_prevs.extend([trailer_hitch_offset] * (len(l_bars) - 1))
         
         self.c_tractor = self.get_parameter('color_tractor').value
         self.c_trailer = self.get_parameter('color_trailer').value
         self.c_wheel = self.get_parameter('color_wheel').value
         self.c_drawbar = self.get_parameter('color_drawbar').value
+        
+
         
         # Construct trailers list
         self.trailers = []
@@ -104,9 +152,22 @@ class TractorOdometer(Node):
 
     def update(self):
         # Update Model
-        # Note: We overwrite the tractor state with Odom data in callback,
-        # so model.update will primarily advance the trailer states based on that.
-        self.state = self.model.update(self.state, self.v0, self.delta)
+        # Note: We overwrite the tractor state with Odom data in callback.
+        # To ensure the tractor stays at the Odom position (and isn't integrated/predicted),
+        # we save the current Odom state and restore it after the model update.
+        
+        # Save current tractor state (from Odom)
+        tractor_state_odom = self.state[0:3].copy()
+        
+        # Update model (integrates everything, including tractor)
+        new_state = self.model.update(self.state, self.v0, self.delta)
+        
+        # Update state with new values
+        self.state = new_state
+        
+        # Restore tractor state to the ground truth (from Odom)
+        # This ensures the tractor visualization matches the topic exactly.
+        self.state[0:3] = tractor_state_odom
         
         # Get Coordinates for all units
         coords = self.model.get_coordinates(self.state)
@@ -240,7 +301,15 @@ class TractorOdometer(Node):
         p0 = coords[0]
         p0_f = coords[1]
         theta0 = self.state[2]
-        p_tractor_c = (p0 + p0_f) / 2
+        
+        # Calculate center based on Overhang and Length
+        # Rear Face is at -overhang from Rear Axle (p0)
+        # Front Face is at -overhang + length from Rear Axle
+        # Center is at (-overhang + (-overhang + length)) / 2 = length/2 - overhang
+        
+        tr_center_offset = self.tractor_len / 2.0 - self.tractor_overhang
+        p_tractor_c = p0 + tr_center_offset * np.array([np.cos(theta0), np.sin(theta0)])
+        
         marker_array.markers.append(create_cube_marker(p_tractor_c[0], p_tractor_c[1], theta0, 
                                                        self.tractor_len, self.tractor_width, 1.0, 
                                                        self.c_tractor[0], self.c_tractor[1], self.c_tractor[2], self.c_tractor[3]))
@@ -286,7 +355,10 @@ class TractorOdometer(Node):
                                                            self.c_drawbar[0], self.c_drawbar[1], self.c_drawbar[2], self.c_drawbar[3]))
             
             # Trailer Body
-            p_trailer_c = (p_dolly + p_axle) / 2
+            # Calculate center based on Overhang and Body Length relative to Axle (p_axle)
+            tl_center_offset = self.trailer_body_len / 2.0 - self.trailer_overhang
+            p_trailer_c = p_axle + tl_center_offset * np.array([np.cos(theta_trailer), np.sin(theta_trailer)])
+            
             marker_array.markers.append(create_cube_marker(p_trailer_c[0], p_trailer_c[1], theta_trailer,
                                                            self.trailer_body_len, self.trailer_width, 1.0, 
                                                            self.c_trailer[0], self.c_trailer[1], self.c_trailer[2], self.c_trailer[3]))
