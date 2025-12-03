@@ -1,0 +1,16 @@
+/**:
+  ros__parameters:
+    L0: 2.0
+    dt: 0.05
+    # Trailer Configuration (List of dictionaries)
+    # Since ROS 2 params don't support list of dicts easily, we use parallel arrays or flattened structure.
+    # For simplicity in this example, we'll use parallel arrays.
+    trailer_L_bars: [1.0, 1.0, 1.0, 1.0]
+    trailer_L_trls: [1.2, 1.2, 1.2, 1.2]
+    trailer_dh_prevs: [0.5, 0.5, 0.5, 0.5]
+    
+    # Visualization Colors [r, g, b, a]
+    color_tractor: [1.0, 0.27, 0.0, 0.5] # OrangeRed
+    color_trailer: [0.0, 0.0, 1.0, 0.5]  # Blue
+    color_wheel: [1.0, 1.0, 1.0, 1.0]    # White
+    color_drawbar: [0.8, 0.9, 1.0, 1.0]  # White Blue (Light Blue)
