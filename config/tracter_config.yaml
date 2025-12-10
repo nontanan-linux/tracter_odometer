@@ -28,4 +28,4 @@
     trailer_overhang: 0.4
     wheel_diam: 0.6
     wheel_width: 0.3
-    track_width: 1.6 # Distance between left and right wheels
+    track_width: 1.3 # Distance between left and right wheels

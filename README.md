@@ -45,6 +45,12 @@ ros2 launch tracter_odometer tracter_odometer.launch.py
 ros2 launch tracter_odometer tracter_odometer.launch.xml
 ```
 
+To launch with a specific namespace (e.g., for multi-robot setups):
+```bash
+ros2 launch tracter_odometer tracter_odometer.launch.xml namespace:=/tractor1
+```
+This will push all topics (e.g., `vehicle_markers`, `joint_states`) into the `/tractor1` namespace.
+
 ### Running Node Manually
 
 If you prefer to run the node directly (make sure to load parameters manually or via a params file):
@@ -74,8 +80,12 @@ You can customize the size of the vehicle elements in `config/tracter_config.yam
 *   `tractor_overhang`: Distance from Rear Axle to Rear Face (Rear Overhang) [m].
 *   **Note**: Tractor Total Length is calculated as `L0 + tractor_overhang + tractor_front_overhang`.
 
-*   `trailer_width`, `trailer_body_len`, `trailer_overhang`
-*   `wheel_diam`, `wheel_width`, `track_width`
+*   `trailer_width`: Width of the trailer [m].
+*   `trailer_body_len`: Length of the trailer body [m].
+*   `trailer_overhang`: Rear overhang of the trailer [m].
+*   `wheel_diam`: Diameter of the wheels [m].
+*   `wheel_width`: Width of the wheels [m].
+*   `track_width`: Distance between left and right wheels [m].
 
 ### Visualization Colors
 Colors are defined as RGBA vectors `[r, g, b, a]`.
@@ -94,9 +104,9 @@ Colors are defined as RGBA vectors `[r, g, b, a]`.
     *   Uses `twist.twist` to calculate steering angle ($\delta$).
 
 #### Published Topics
-*   `/joint_states` ([sensor_msgs/msg/JointState](https://github.com/ros2/common_interfaces/blob/master/sensor_msgs/msg/JointState.msg))
+*   `joint_states` ([sensor_msgs/msg/JointState](https://github.com/ros2/common_interfaces/blob/master/sensor_msgs/msg/JointState.msg))
     *   Articulation angles: `steering_joint`, `hitch_i_joint`, `dolly_i_joint`.
-*   `/visualization_marker_array` ([visualization_msgs/msg/MarkerArray](https://github.com/ros2/common_interfaces/blob/master/visualization_msgs/msg/MarkerArray.msg))
+*   `vehicle_markers` ([visualization_msgs/msg/MarkerArray](https://github.com/ros2/common_interfaces/blob/master/visualization_msgs/msg/MarkerArray.msg))
     *   3D markers for RViz visualization.
 *   `/tf` ([tf2_msgs/msg/TFMessage](https://github.com/ros2/common_interfaces/blob/master/tf2_msgs/msg/TFMessage.msg))
     *   Transforms for all trailer links relative to `map`.
@@ -109,7 +119,7 @@ The launch files automatically open RViz with a pre-configured view (`rviz/tract
 If setting up manually:
 1.  **Fixed Frame**: `map`
 2.  **Add Display**: `TF` to see coordinate frames.
-3.  **Add Display**: `MarkerArray` subscribed to `/visualization_marker_array`.
+3.  **Add Display**: `MarkerArray` subscribed to `vehicle_markers` (or `/namespace/vehicle_markers`).
 
 ### Visual Elements
 *   **Tractor**: Orange box (default).

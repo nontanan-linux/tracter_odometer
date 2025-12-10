@@ -1,5 +1,6 @@
 <launch>
-  <node pkg="tracter_odometer" exec="odometer_node" name="tracter_odometer" output="screen">
+  <arg name="namespace" default=""/>
+  <node pkg="tracter_odometer" exec="odometer_node" name="tracter_odometer" output="screen" namespace="$(var namespace)">
     <param from="$(find-pkg-share tracter_odometer)/config/tracter_config.yaml"/>
   </node>
 </launch>
