@@ -88,6 +88,7 @@ class TractorOdometer(Node):
         self.c_wheel = self.get_parameter('color_wheel').value
         self.c_drawbar = self.get_parameter('color_drawbar').value
         
+        
 
         
         # Construct trailers list
